@@ -938,6 +938,13 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         {
             var exitFunc = function()
             {
+		#if (PSYCH && PSYCHVERSION >= "0.7")
+                ClientPrefs.toggleVolumeKeys(true);
+	        #elseif (PSYCH && !(PSYCHVERSION >= "0.7"))
+		FlxG.sound.muteKeys = TitleState.muteKeys;
+		FlxG.sound.volumeDownKeys = TitleState.volumeDownKeys;
+		FlxG.sound.volumeUpKeys = TitleState.volumeUpKeys;
+	        #end
                 FlxG.mouse.visible = false;
                 inst.stop();
                 if(vocals != null) vocals.stop();
