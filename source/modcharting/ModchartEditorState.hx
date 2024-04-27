@@ -616,7 +616,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
 	}
 	#end
         totalElapsed += elapsed;
-        highlight.alpha = 0.8+Math.sin(totalElapsed*5)*0.15;
+        highlight.alpha = 0.8+FlxMath.fastSin(totalElapsed*5)*0.15;
         super.update(elapsed);
         if(inst.time < 0) {
 			inst.pause();
