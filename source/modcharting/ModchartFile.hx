@@ -295,39 +295,63 @@ class ModchartFile
                 json = cast Json.parse(rawJson);
             trace('loaded json');
             trace(folderShit);
-            #if (hscript && sys)
-            if (FileSystem.isDirectory(folderShit))
+             #if (SCEModchartingTools && HScriptImproved && HSCRIPT_ALLOWED && sys)
+            if (FileSystem.isDirectory(folderShit + '/advancedModScripts/'))
             {
-                trace("folder le exists");
-                for (file in FileSystem.readDirectory(folderShit))
+                backend.Debug.logInfo("folder le exists");
+                for (file in FileSystem.readDirectory(folderShit + '/advancedModScripts/'))
                 {
-                    trace(file);
-                    if(file.endsWith('.hx')) //custom mods!!!!
+                    backend.Debug.logInfo(file);
+                    if(file.endsWith('.hx') || file.endsWith('.hxs') || file.endsWith('.hsc') || file.endsWith('.hscript')) //custom mods!!!!
                     {
-                        var scriptStr = File.getContent(folderShit + file);
+                        var scriptStr = File.getContent(folderShit + '/advancedModScripts/' + file);
                         var scriptInit:Dynamic = null;
-			#if HScriptImproved
-			//Only for SCE Ill add support for the editor later....
-			var justFilePlace = folderShit + file;
-                        var useHSI:Bool = #if SCEModchartingTools (PlayState.SONG != null && PlayState.SONG.usesHSIScripts) #else true #end;
-                        if (useHSI)
-                        {
-                            scriptInit = codenameengine.scripting.Script.create(folderShit + file);
-                            if (PlayState.instance == flixel.FlxG.state)
-                               PlayState.instance.scripts.add(scriptInit);
-                            scriptInit.load();
-                            hasImproved = true;
-                        }else{
-                            scriptInit = new FunkinHScript(null, scriptStr);
-                        }
-                        #else
-                        scriptInit = #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7") new FunkinHScript(null, scriptStr) #else new CustomModifierScript(scriptStr) #end;
-                        #end
-                        customModifiers.set(file.replace(".hx", ""), scriptInit);
-                        trace('loaded custom mod: ' + file);
+			            var justFilePlace = folderShit + '/advancedModScripts/' + file;
+                        scriptInit = codenameengine.scripting.Script.create(justFilePlace);
+                        if (PlayState.instance == flixel.FlxG.state)
+                            PlayState.instance.scripts.add(scriptInit);
+                        scriptInit.load();
+                        customModifiers.set(file.replace(".hx", "").replace(".hxs", "").replace(".hsc", "").replace(".hscript", ""), scriptInit);
+                        backend.Debug.logInfo('loaded custom mod: ' + file);
                     }
                 }
             }
+
+	        if (FileSystem.isDirectory(folderShit))
+            {
+                backend.Debug.logInfo("folder le exists");
+                for (file in FileSystem.readDirectory(folderShit))
+                {
+                    backend.Debug.logInfo(file);
+                    if(file.endsWith('.hx') || file.endsWith('.hxs') || file.endsWith('.hsc') || file.endsWith('.hscript')) //custom mods!!!!
+                    {
+                        var scriptStr = File.getContent(folderShit + file);
+                        var scriptInit:Dynamic = null;
+                       	scriptInit = new FunkinHScript(null, scriptStr);
+                        customModifiers.set(file.replace(".hx", "").replace(".hxs", "").replace(".hsc", "").replace(".hscript", ""), scriptInit);
+                        backend.Debug.logInfo('loaded custom mod: ' + file);
+                    }
+                }
+            }
+            #elseif (!SCEModchartingTools)
+                #if (hscript && sys)
+                if (FileSystem.isDirectory(folderShit))
+                    {
+                        trace("folder le exists");
+                        for (file in FileSystem.readDirectory(folderShit))
+                        {
+                            trace(file);
+                            if(file.endsWith('.hx')) //custom mods!!!!
+                            {
+                                var scriptStr = File.getContent(folderShit + file);
+                                var scriptInit:Dynamic = null;
+                                scriptInit = #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7") new FunkinHScript(null, scriptStr) #else new CustomModifierScript(scriptStr) #end;
+                                customModifiers.set(file.replace(".hx", ""), scriptInit);
+                                trace('loaded custom mod: ' + file);
+                            }
+                        }
+                    }
+                #end
             #end
         }
         else 
