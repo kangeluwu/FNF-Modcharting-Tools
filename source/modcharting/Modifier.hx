@@ -128,14 +128,25 @@ class Modifier
     }
     public function checkLane(lane:Int):Bool //returns true if should display on current lane
     {
+     #if RCE
+		var stupidStrum=Math.floor(lane/NoteMovement.keyCount);
+     #end
         switch(type)
         {
             case LANESPECIFIC: 
                 return lane == targetLane;
             case PLAYERONLY:
+									#if RCE
+									return stupidStrum == PlayState.instance.currentPlayerStrum;
+									#else
                 return lane >= NoteMovement.keyCount;
+									#end
             case OPPONENTONLY:
+										#if RCE
+									return stupidStrum == PlayState.instance.currentOppponentStrum;
+										#else
                 return lane < NoteMovement.keyCount;
+										#end
             default: //so haxe shuts the fuck up
         }
         return true;
@@ -1933,7 +1944,7 @@ class ArrowPath extends Modifier {
         if (openfl.utils.Assets.exists(Paths.txt(PlayState.SONG.song.toLowerCase()+"/customMods/path")))
         #end
         {
-            var newPosition = executePath(0, curPos, lane, lane < 4 ? 0 : 1, new Vector4(noteData.x, noteData.y, noteData.z, 0));
+            var newPosition = executePath(0, curPos, #if RCE Math.floor(lane/4) #else lane, lane < 4 ? 0 : 1#end ,new Vector4(noteData.x, noteData.y, noteData.z, 0));
             noteData.x = newPosition.x;
             noteData.y = newPosition.y;
             noteData.z = newPosition.z;
