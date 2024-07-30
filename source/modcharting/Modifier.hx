@@ -1944,7 +1944,7 @@ class ArrowPath extends Modifier {
         if (openfl.utils.Assets.exists(Paths.txt(PlayState.SONG.song.toLowerCase()+"/customMods/path")))
         #end
         {
-            var newPosition = executePath(0, curPos, #if RCE Math.floor(lane/4) #else lane, lane < 4 ? 0 : 1#end ,new Vector4(noteData.x, noteData.y, noteData.z, 0));
+            var newPosition = executePath(0, curPos,lame, #if RCE Math.floor(lane/4) #else lane < 4 ? 0 : 1#end ,new Vector4(noteData.x, noteData.y, noteData.z, 0));
             noteData.x = newPosition.x;
             noteData.y = newPosition.y;
             noteData.z = newPosition.z;
