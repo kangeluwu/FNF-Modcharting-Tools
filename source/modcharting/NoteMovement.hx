@@ -38,7 +38,9 @@ class NoteMovement
         defaultSkewY = []; 
         defaultScale = [];
         arrowSizes = [];
-        keyCount = #if (LEATHER || KADE) PlayState.strumLineNotes.length-PlayState.playerStrums.length #else game.strumLineNotes.length-game.playerStrums.length #end; //base game doesnt have opponent strums as group
+        keyCount = #if (LEATHER || KADE) PlayState.strumLineNotes.length-PlayState.playerStrums.length #elseif RCE
+/*PlayState.SONG.keyCounts*/4
+#else game.strumLineNotes.length-game.playerStrums.length #end; //base game doesnt have opponent strums as group
         playerKeyCount = #if (LEATHER || KADE) PlayState.playerStrums.length #else game.playerStrums.length #end;
 
         for (i in #if (LEATHER || KADE) 0...PlayState.strumLineNotes.members.length #else 0...game.strumLineNotes.members.length #end)
@@ -65,7 +67,7 @@ class NoteMovement
         #if LEATHER
         leatherEngineOffsetStuff.clear();
         #end
-        totalKeyCount = keyCount + playerKeyCount;
+        totalKeyCount = #if RCE game.strumLineNotes.length #else keyCount + playerKeyCount#end ;
     }
     public static function getDefaultStrumPosEditor(game:modcharting.ModchartEditorState)
     {
