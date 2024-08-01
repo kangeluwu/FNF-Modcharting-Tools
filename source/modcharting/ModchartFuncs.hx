@@ -158,10 +158,11 @@ class ModchartFuncs
     }
 
     
-    public static function loadHaxeFunctions(#if PSYCH funkin:FunkinLua#end)
+    public static function loadHaxeFunctions(#if PSYCH  funkin:#if RCE Dynamic #else FunkinLua #end #end)
         {
-            #if (PSYCH && PSYCHVERSION >= "0.7")
+            #if PSYCH
             #if HSCRIPT_ALLOWED
+            #if (PSYCHVERSION >= "0.7")
             FunkinHScript.initHaxeModule(funkin);
     
             if (funkin.hscript != null)
@@ -184,6 +185,15 @@ class ModchartFuncs
                     funkin.hscript.set('ModchartFile', ModchartFile);
                 #end
             }
+            #elseif RCE
+            funkin.set('Math', Math);
+            funkin.set('PlayfieldRenderer', PlayfieldRenderer);
+            funkin.set('ModchartUtil', ModchartUtil);
+            funkin.set('Modifier', Modifier);
+            funkin.set('NoteMovement', NoteMovement);
+            funkin.set('NotePositionData', NotePositionData);
+            funkin.set('ModchartFile', ModchartFile);
+            #end
             #end
             #elseif LEATHER
             /*if(flixel.FlxG.state == states.PlayState.instance){
@@ -196,7 +206,7 @@ class ModchartFuncs
             }*/
             #end
         }
-    #if (HSCRIPT_ALLOWED && PSYCH && PSYCHVERSION >= "0.7")
+    #if (HSCRIPT_ALLOWED && PSYCH && (PSYCHVERSION >= "0.7"||RCE))
     public static function loadHScriptFunctions(parent:Dynamic)
     {
         #if HSCRIPT_ALLOWED

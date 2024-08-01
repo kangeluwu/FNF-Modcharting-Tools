@@ -8,11 +8,13 @@ import flixel.math.FlxPoint;
 import flixel.addons.ui.FlxUIButton;
 import flixel.addons.ui.Anchor;
 import flixel.tweens.FlxEase;
+import openfl.media.Sound;
 import haxe.Json;
 import openfl.net.FileReference;
 import openfl.events.Event;
 import openfl.events.IOErrorEvent;
 import flixel.graphics.FlxGraphic;
+import openfl.utils.Assets as OpenFlAssets;
 import flixel.addons.display.FlxBackdrop;
 import flixel.tweens.FlxTween;
 import flixel.text.FlxText;
@@ -74,7 +76,9 @@ import Section.SwagSection;
 import Song;
 import MusicBeatSubstate;
 #end
-
+#if RCE
+import customlize.*;
+#end
 import modcharting.*;
 import modcharting.PlayfieldRenderer.StrumNoteType;
 import modcharting.Modifier;
@@ -314,9 +318,17 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
 	public var playerStrums:FlxTypedGroup<StrumNoteType>;
 	public var unspawnNotes:Array<Note> = [];
     public var loadedNotes:Array<Note> = []; //stored notes from the chart that unspawnNotes can copy from
-    public var vocals:FlxSound;
+    public var vocals:#if RCE VoicesGroup #else FlxSound#end = null;
+
     #if (PSYCH && PSYCHVERSION >= "0.7.3")
     public var opponentVocals:FlxSound;
+    #end
+    #if RCE
+    public var sfx:SoundGroup = null;
+    public var playerVocalFiles:Array<String> = [];
+	public var opponentVocalFiles:Array<String> = [];
+    public var sfxFiles:Array<String> = [];
+    public var currentStrums:Array<FlxTypedGroup<StrumNote>> = [];
     #end
     var generatedMusic:Bool = false;
     
@@ -396,7 +408,9 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         opponentMode = (ClientPrefs.getGameplaySetting('opponent') && !PlayState.SONG.blockOpponentMode);
 	CoolUtil.opponentModeActive = opponentMode;
         #end
-
+        #if RCE
+        opponentMode = ClientPrefs.getGameplaySetting('opponentPlayer', false);
+        #end
         var bg:FlxSprite = new FlxSprite(0, 0).loadGraphic(Paths.image('menuDesat'));
         bg.setGraphicSize(Std.int(FlxG.width), Std.int(FlxG.height));
         add(bg);
@@ -481,7 +495,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         //strumLineNotes.cameras = [camHUD];
 		//notes.cameras = [camHUD];
 
-        #if ("flixel-addons" >= "3.0.0")
+        #if ("flixel-addons" >= "3.0.0" && !RCE)
         grid = new FlxBackdrop(FlxGraphic.fromBitmapData(createGrid(gridSize, gridSize, FlxG.width, gridSize)), FlxAxes.X, 0, 0);
         #else 
         grid = new FlxBackdrop(FlxGraphic.fromBitmapData(createGrid(gridSize, gridSize, FlxG.width, gridSize)), 0, 0, true, false);
@@ -519,9 +533,14 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         line = new FlxSprite().makeGraphic(10, gridSize);
         line.color = FlxColor.BLACK;
         add(line);
-
+        #if !RCE
         generateStaticArrows(0);
         generateStaticArrows(1);
+        #else
+        for (i in 0...PlayState.SONG.strums){
+			generateStaticArrows(i,PlayState.SONG.strums);
+				}
+        #end
         NoteMovement.getDefaultStrumPosEditor(this);
 
         //gridGap = FlxMath.remapToRange(Conductor.stepCrochet, 0, Conductor.stepCrochet, 0, gridSize); //idk why i even thought this was how i do it
@@ -699,7 +718,17 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                         vocals.pause();
                         vocals.time = inst.time;
                         vocals.play();
+                    
                     }
+                    #if RCE
+                    if(sfx != null) {
+                        sfx.play();
+                        sfx.pause();
+                        sfx.time = inst.time;
+                        sfx.play();
+                    
+                    }
+                    #end
                     #if (PSYCH && PSYCHVERSION >= "0.7.3")
                     if (opponentVocals != null)
                     {
@@ -735,6 +764,13 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                     opponentVocals.time = inst.time;
                 }
                 #end
+                #if RCE
+                if (sfx != null)
+                {
+                    sfx.pause();
+                    sfx.time = inst.time;
+                }
+                #end
                 playfieldRenderer.editorPaused = true;
                 dirtyUpdateNotes = true;
                 dirtyUpdateEvents = true;
@@ -744,6 +780,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
             {
                 inst.pause();
                 if(vocals != null) vocals.pause();
+                #if RCE if(sfx != null) sfx.pause(); #end
                 #if (PSYCH && PSYCHVERSION >= "0.7.3") if(opponentVocals != null) opponentVocals.pause(); #end
                 inst.time += (Conductor.crochet*4*shiftThing);
                 dirtyUpdateNotes = true;
@@ -753,6 +790,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
             {
                 inst.pause();
                 if(vocals != null) vocals.pause();
+                #if RCE if(sfx != null) sfx.pause(); #end
                 #if (PSYCH && PSYCHVERSION >= "0.7.3") if(opponentVocals != null) opponentVocals.pause(); #end
                 inst.time -= (Conductor.crochet*4*shiftThing);
                 dirtyUpdateNotes = true;
@@ -829,7 +867,12 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                 spr.rgbShader.b = daNote.rgbShader.b;
 		#end
                 #else
+                #if RCE
+                var strumGroup:FlxTypedGroup<StrumNote> = currentStrums[daNote.currentStrum];
+                var strum = strumGroup.members[daNote.noteData];
+                #else
                 var strum = strumLineNotes.members[daNote.noteData+(daNote.mustPress ? NoteMovement.keyCount : 0)];
+                #end
                 strum.playAnim("confirm", true);
                 strum.resetAnim = 0.15;
                 if(daNote.isSustainNote && !daNote.animation.curAnim.name.endsWith('end')) {
@@ -1151,8 +1194,13 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         var boyfriendVocals:String = getVocalFromCharacter(PlayState.SONG.player1);
 		var dadVocals:String = getVocalFromCharacter(PlayState.SONG.player2);
         #end
-
+        #if (!RCE)
         vocals = new FlxSound();
+        #else
+        playerVocalFiles = songData.playerVocalFiles;
+		sfxFiles = songData.sfxFiles;
+		opponentVocalFiles = songData.opponentVocalFiles;
+        #end
         #if (PSYCH && PSYCHVERSION >= "0.7.3")
         opponentVocals = new FlxSound();
         #end
@@ -1161,7 +1209,67 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                 #if LEATHER 
                 vocals.loadEmbedded(Paths.voices(PlayState.SONG.song, (PlayState.SONG.specialAudioName == null ? PlayState.storyDifficultyStr.toLowerCase() : PlayState.SONG.specialAudioName)));
                 #elseif (PSYCH && !(PSYCHVERSION >= "0.7"))
+                #if RCE
+                if (vocals != null)
+                    {
+                        vocals.stop();
+                        vocals.clear();
+                        // vocals.stop();
+                    }
+                    if (sfx != null)
+                        {
+                            sfx.stop();
+                            sfx.clear();
+                            // vocals.stop();
+                        }
+                var file:Dynamic = Paths.songStuffer(PlayState.SONG.song,PlayState.SONG.songFileNames[1]);
+                  if (vocals == null)
+                    vocals = new VoicesGroup();
+                  add(vocals);
+                  if (sfx == null)
+                    sfx = new VoicesGroup();
+                  add(sfx);
+            
+                    for (i in playerVocalFiles){
+                    var fileP:Dynamic = Paths.songStuffer(PlayState.SONG.song,PlayState.SONG.songFileNames[1] + '-' + i);
+                    if (Std.isOfType(fileP, Sound) || OpenFlAssets.exists(fileP)) {
+                           var snd:FlxSound = new FlxSound();
+                           snd.loadEmbedded(fileP);
+                           vocals.addPlayerVoice(snd);
+                    }
+                }
+        
+                for (i in opponentVocalFiles){
+                    var fileO:Dynamic = Paths.songStuffer(PlayState.SONG.song,PlayState.SONG.songFileNames[1] + '-' + i);
+                    if (Std.isOfType(fileO, Sound) || OpenFlAssets.exists(fileO)) {
+                           var snd:FlxSound = new FlxSound();
+                           snd.loadEmbedded(fileO);
+                           vocals.addOpponentVoice(snd);
+                    }
+                }
+            
+                if (vocals.playerVoices.members.length<=0|| vocals.opponentVoices.members.length<=0){
+                if (Std.isOfType(file, Sound) || OpenFlAssets.exists(file)) {
+                    var snd:FlxSound = new FlxSound();
+                    snd.loadEmbedded(file);
+                    vocals.add(snd);
+                }
+            }
+            
+        
+            if (sfxFiles.length > 0){
+                for (i in sfxFiles){
+                    var fileSFX:Dynamic = Paths.songStuffer(PlayState.SONG.song,i);
+                    if (Std.isOfType(fileSFX, Sound) || OpenFlAssets.exists(fileSFX)) {
+                           var snd:FlxSound = new FlxSound();
+                           snd.loadEmbedded(fileSFX);
+                           sfx.add(snd);
+                    }
+                }
+            }
+                #else
                 vocals.loadEmbedded(Paths.voices(PlayState.SONG.song));
+                #end
                 #end
 
                 #if SCEModchartingTools
@@ -1182,8 +1290,9 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
             }
         }
 		catch(e:Dynamic) {}
-
+        #if !RCE
         FlxG.sound.list.add(vocals);
+        #end
         //vocals.pitch = playbackRate;
         #if (PSYCH && PSYCHVERSION >= "0.7.3")
         FlxG.sound.list.add(opponentVocals);
@@ -1208,6 +1317,12 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                 vocals.pause();
                 vocals.time = 0;
             }
+            #if RCE
+            if(sfx != null) {
+                sfx.pause();
+                sfx.time = 0;
+            }
+            #end
             #if (PSYCH && PSYCHVERSION >= "0.7.3")
             if(opponentVocals != null)
             {
@@ -1236,18 +1351,43 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
             for (songNotes in section.sectionNotes)
             {
                 var daStrumTime:Float = songNotes[0];
+                
                 #if LEATHER 
                 var gottaHitNote:Bool = section.mustHitSection;
 				if(songNotes[1] >= (!gottaHitNote ? PlayState.SONG.keyCount : PlayState.SONG.playerKeyCount))
 					gottaHitNote = !section.mustHitSection;
                 var daNoteData:Int = Std.int(songNotes[1] % (!gottaHitNote ? PlayState.SONG.keyCount : PlayState.SONG.playerKeyCount));
                 #else
+                #if RCE 
+                var fuckYOU = songNotes[1];
+					if (!songData.igorAutoFix){
+					if (!section.mustHitSection){
+						if (fuckYOU < Note.NOTE_AMOUNT*2){
+						if (fuckYOU >= Note.NOTE_AMOUNT)
+							{
+								fuckYOU -= Note.NOTE_AMOUNT;
+							}
+							else
+							{
+								fuckYOU += Note.NOTE_AMOUNT;
+							}
+						}
+					}
+					}
+					var daNoteData:Int = Std.int(fuckYOU % Note.NOTE_AMOUNT);
+				
+					var daNoteStrum:Int = Math.floor(fuckYOU / Note.NOTE_AMOUNT);
+                    #else
                 var daNoteData:Int = Std.int(songNotes[1] % 4);
+                #end
                 var gottaHitNote:Bool = section.mustHitSection;
                 if (songNotes[1] > 3 && !opponentMode)
                     gottaHitNote = !section.mustHitSection;
                 else if (songNotes[1] <= 3 && opponentMode)
                     gottaHitNote = !section.mustHitSection;
+                #if RCE
+                gottaHitNote = if (daNoteStrum == PlayState.instance.currentPlayerStrum) true else false;
+                #end
                 #end
 
                 var oldNote:Note;
@@ -1265,6 +1405,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                     swagNote.noteType = songNotes[3];
                     if(!Std.isOfType(songNotes[3], String)) swagNote.noteType = states.editors.ChartingState.noteTypeList[songNotes[3]]; //Backward compatibility + compatibility with Week 7 charts
                 #elseif (PSYCH && !(PSYCHVERSION >= "0.7"))
+              
                     var swagNote:Note = new Note(daStrumTime, daNoteData, oldNote, false, false);
                     swagNote.sustainLength = songNotes[2];
                     swagNote.mustPress = gottaHitNote;
@@ -1354,6 +1495,28 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                             if(daNoteData > 1) //Up and Right
                                 sustainNote.x += FlxG.width / 2 + 25;
                         }
+                        #elseif RCE
+                        if (sustainNote.currentStrum == PlayState.instance.currentPlayerStrum)
+                            {
+                                sustainNote.x += FlxG.width / 2; // general offset
+                            }
+                            else if(ClientPrefs.middleScroll && sustainNote.currentStrum == PlayState.instance.currentOpponentStrum)
+                            {
+                                switch (PlayState.instance.currentOpponentStrum){
+                                    case 1:
+                                        sustainNote.x += 310;
+                                if(daNoteData > 1) //Up and Right
+                                {
+                                    sustainNote.x += FlxG.width / 2 + 25;
+                                }
+                                  case 0:
+                                    sustainNote.x -= 310;
+                                if(daNoteData <= 1) //Up and Right
+                                {
+                                    sustainNote.x -= -FlxG.width / 2 - 25;
+                                }
+                            }
+                            }
                         #else
                         if (sustainNote.mustPress) sustainNote.x += FlxG.width / 2; // general offset
                         else if(ClientPrefs.middleScroll)
@@ -1367,7 +1530,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                     }
                 }
 
-                #if PSYCH
+                #if (PSYCH && !RCE)
                 if (swagNote.mustPress)
                 {
                     swagNote.x += FlxG.width / 2; // general offset
@@ -1382,6 +1545,29 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                     if(daNoteData > 1) //Up and Right
                         swagNote.x += FlxG.width / 2 + 25;
                 }
+                #end
+                #if RCE
+                if (swagNote.currentStrum == PlayState.instance.currentPlayerStrum)
+                    {
+                        swagNote.x += FlxG.width / 2; // general offset
+                    }
+                    else if(ClientPrefs.middleScroll && swagNote.currentStrum == PlayState.instance.currentOpponentStrum)
+                    {
+                        switch (PlayState.instance.currentOpponentStrum){
+                            case 1:
+                                swagNote.x += 310;
+                        if(daNoteData > 1) //Up and Right
+                        {
+                            swagNote.x += FlxG.width / 2 + 25;
+                        }
+                          case 0:
+                            swagNote.x -= 310;
+                        if(daNoteData <= 1) //Up and Right
+                        {
+                            swagNote.x -= -FlxG.width / 2 - 25;
+                        }
+                    }
+                    }
                 #end
             }
 
@@ -1398,8 +1584,8 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
     }
 
 
-    private function generateStaticArrows(player:Int):Void
-    {
+    private function generateStaticArrows(player:Int#if RCE ,strumNum:Int = 2 #end):Void
+    {   
         var usedKeyCount = 4;
         #if LEATHER
         usedKeyCount = PlayState.SONG.keyCount;
@@ -1408,7 +1594,13 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
         #else
         usedKeyCount = 4;
         #end
-
+        #if RCE
+        var strum = new FlxTypedGroup<StrumNote>();
+		if (player == 0)
+			strum = playerStrums;
+		else if (player == 1)
+			strum = opponentStrums;
+        #end
         var strumLineX:Float = #if (PSYCH && PSYCHVERSION >= "0.7") ClientPrefs.data.middleScroll #elseif (PSYCH && PSYCHVERSION < "0.7") ClientPrefs.middleScroll #elseif LEATHER utilities.Options.getData("middlescroll") #end #if PSYCH ? PlayState.STRUM_X_MIDDLESCROLL : PlayState.STRUM_X #end;
 
 		var TRUE_STRUM_X:Float = strumLineX;
@@ -1461,7 +1653,7 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                 babyArrow.downScroll = ClientPrefs.data.downScroll;
                 babyArrow.alpha = targetAlpha;
             #elseif (PSYCH && !(PSYCHVERSION >= "0.7"))
-                var babyArrow:StrumNote = new StrumNote(ClientPrefs.middleScroll ? PlayState.STRUM_X_MIDDLESCROLL : PlayState.STRUM_X, strumLine.y, i, player);
+                var babyArrow:StrumNote = new StrumNote(ClientPrefs.middleScroll ? PlayState.STRUM_X_MIDDLESCROLL : PlayState.STRUM_X, strumLine.y, i, player#if RCE ,strumNum#end);
                 babyArrow.downScroll = ClientPrefs.downScroll;
                 babyArrow.alpha = targetAlpha;
             #end
@@ -1498,6 +1690,33 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
                     playerStrums.add(babyArrow);
                 else opponentStrums.add(babyArrow);
             }
+            #elseif RCE
+            if (player == 1)
+				{
+					if(middleScroll && opponentMode)
+					{
+					babyArrow.x -= 310;
+					if(i <= 1) { //Up and Right
+						babyArrow.x -= FlxG.width / 2 - 25;
+					}
+				}
+
+				playerStrums.add(babyArrow);
+				}
+				else if (player == 0)
+				{
+					if(middleScroll && !opponentMode)
+					{
+						babyArrow.x += 310;
+						if(i > 1) { //Up and Right
+							babyArrow.x += FlxG.width / 2 + 25;
+						}
+					}
+
+					opponentStrums.add(babyArrow);
+				}else{
+					strum.add(babyArrow);
+				}
             #else
             if (player == 1)
             {
@@ -1529,6 +1748,9 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
             strumLineNotes.add(babyArrow);
             #if PSYCH 
             babyArrow.postAddedToGroup();
+            #if RCE
+            currentStrums.push(strum);
+            #end
             #end
         }
     }
