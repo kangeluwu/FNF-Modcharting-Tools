@@ -1434,7 +1434,45 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
 
                 final susLength:Float = swagNote.sustainLength / Conductor.stepCrochet;
 				final floorSus:Int = Math.floor(susLength);
-
+                #if (PSYCH && !RCE)
+                if (swagNote.mustPress)
+                {
+                    swagNote.x += FlxG.width / 2; // general offset
+                }
+                #if (PSYCHVERSION >= "0.7")
+                else if(ClientPrefs.data.middleScroll)
+                #else
+                else if(ClientPrefs.middleScroll)
+                #end
+                {
+                    swagNote.x += 310;
+                    if(daNoteData > 1) //Up and Right
+                        swagNote.x += FlxG.width / 2 + 25;
+                }
+                #end
+                #if RCE
+                if (swagNote.currentStrum == PlayState.instance.currentPlayerStrum)
+                    {
+                        swagNote.x += FlxG.width / 2; // general offset
+                    }
+                    else if(ClientPrefs.middleScroll && swagNote.currentStrum == PlayState.instance.currentOpponentStrum)
+                    {
+                        switch (PlayState.instance.currentOpponentStrum){
+                            case 1:
+                                swagNote.x += 310;
+                        if(daNoteData > 1) //Up and Right
+                        {
+                            swagNote.x += FlxG.width / 2 + 25;
+                        }
+                          case 0:
+                            swagNote.x -= 310;
+                        if(daNoteData <= 1) //Up and Right
+                        {
+                            swagNote.x -= -FlxG.width / 2 - 25;
+                        }
+                    }
+                    }
+                #end
 				if(floorSus > 0) {
 					for (susNote in 0...floorSus + 1)
 					{
@@ -1488,87 +1526,14 @@ class ModchartEditorState extends #if SCEModchartingTools states.MusicBeatState 
 						}
                         
 
-                        if (sustainNote.mustPress) sustainNote.x += FlxG.width / 2; // general offset
-                        else if(ClientPrefs.data.middleScroll)
-                        {
-                            sustainNote.x += 310;
-                            if(daNoteData > 1) //Up and Right
-                                sustainNote.x += FlxG.width / 2 + 25;
-                        }
-                        #elseif RCE
-                        if (sustainNote.currentStrum == PlayState.instance.currentPlayerStrum)
-                            {
-                                sustainNote.x += FlxG.width / 2; // general offset
-                            }
-                            else if(ClientPrefs.middleScroll && sustainNote.currentStrum == PlayState.instance.currentOpponentStrum)
-                            {
-                                switch (PlayState.instance.currentOpponentStrum){
-                                    case 1:
-                                        sustainNote.x += 310;
-                                if(daNoteData > 1) //Up and Right
-                                {
-                                    sustainNote.x += FlxG.width / 2 + 25;
-                                }
-                                  case 0:
-                                    sustainNote.x -= 310;
-                                if(daNoteData <= 1) //Up and Right
-                                {
-                                    sustainNote.x -= -FlxG.width / 2 - 25;
-                                }
-                            }
-                            }
-                        #else
-                        if (sustainNote.mustPress) sustainNote.x += FlxG.width / 2; // general offset
-                        else if(ClientPrefs.middleScroll)
-                        {
-                            sustainNote.x += 310;
-                            if(daNoteData > 1) //Up and Right
-                                sustainNote.x += FlxG.width / 2 + 25;
-                        }
+                        
                         #end
                         #end
+                        sustainNote.x = swagNote.x;
                     }
                 }
 
-                #if (PSYCH && !RCE)
-                if (swagNote.mustPress)
-                {
-                    swagNote.x += FlxG.width / 2; // general offset
-                }
-                #if (PSYCHVERSION >= "0.7")
-                else if(ClientPrefs.data.middleScroll)
-                #else
-                else if(ClientPrefs.middleScroll)
-                #end
-                {
-                    swagNote.x += 310;
-                    if(daNoteData > 1) //Up and Right
-                        swagNote.x += FlxG.width / 2 + 25;
-                }
-                #end
-                #if RCE
-                if (swagNote.currentStrum == PlayState.instance.currentPlayerStrum)
-                    {
-                        swagNote.x += FlxG.width / 2; // general offset
-                    }
-                    else if(ClientPrefs.middleScroll && swagNote.currentStrum == PlayState.instance.currentOpponentStrum)
-                    {
-                        switch (PlayState.instance.currentOpponentStrum){
-                            case 1:
-                                swagNote.x += 310;
-                        if(daNoteData > 1) //Up and Right
-                        {
-                            swagNote.x += FlxG.width / 2 + 25;
-                        }
-                          case 0:
-                            swagNote.x -= 310;
-                        if(daNoteData <= 1) //Up and Right
-                        {
-                            swagNote.x -= -FlxG.width / 2 - 25;
-                        }
-                    }
-                    }
-                #end
+               
             }
 
             daBeats += 1;

@@ -244,7 +244,12 @@ class PlayfieldRenderer extends FlxSprite //extending flxsprite just so i can ed
             return (notes.members[noteIndex].mustPress ? notes.members[noteIndex].noteData : notes.members[noteIndex].noteData+NoteMovement.keyCount);
         else return (notes.members[noteIndex].mustPress ? notes.members[noteIndex].noteData+NoteMovement.keyCount : notes.members[noteIndex].noteData);
         #elseif RCE
-        return notes.members[noteIndex].noteData +NoteMovement.keyCount*notes.members[noteIndex].currentStrum;
+        var fuck = notes.members[noteIndex].currentStrum;
+        if (fuck == 1)
+            fuck = 0;
+        else if (fuck == 0)
+            fuck = 1;
+        return notes.members[noteIndex].noteData + 4*fuck;
         #else
         return (notes.members[noteIndex].mustPress ? notes.members[noteIndex].noteData+NoteMovement.keyCount : notes.members[noteIndex].noteData);
         #end
